@@ -104,8 +104,7 @@ function AuthForm() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               required
-              className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 text-base"
-              style={{ focusRingColor: '#1a5c38' } as React.CSSProperties}
+              className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-deep text-base"
             />
           </div>
 

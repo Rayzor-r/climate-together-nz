@@ -1,7 +1,5 @@
 'use client'
 
-export const dynamic = 'force-dynamic'
-
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -20,6 +18,7 @@ export default function LogPage() {
   const [loading, setLoading] = useState(true)
   const [logging, setLogging] = useState<string | null>(null)
   const [success, setSuccess] = useState<ActionItem | null>(null)
+  const [logError, setLogError] = useState('')
 
   useEffect(() => {
     supabase.from('actions_library').select('*').order('points', { ascending: false }).then(({ data }) => {
@@ -32,6 +31,7 @@ export default function LogPage() {
 
   async function handleLog(action: ActionItem) {
     setLogging(action.id)
+    setLogError('')
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/auth'); return }
 
@@ -43,6 +43,8 @@ export default function LogPage() {
     setLogging(null)
     if (!error) {
       setSuccess(action)
+    } else {
+      setLogError('Could not log action. Please try again.')
     }
   }
 
@@ -126,6 +128,12 @@ export default function LogPage() {
           ))}
         </div>
       </div>
+
+      {logError && (
+        <div className="mx-4 mb-3 p-3 rounded-2xl text-sm font-medium bg-red-50 text-red-700">
+          {logError}
+        </div>
+      )}
 
       {/* Action grid */}
       <div className="px-4 pb-8">

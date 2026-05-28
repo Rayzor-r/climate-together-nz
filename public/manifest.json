@@ -1,0 +1,10 @@
+{
+  "name": "Climate Together NZ",
+  "short_name": "ClimateTogether",
+  "description": "Track your climate actions, earn points, and make a difference for Aotearoa New Zealand.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f9f7f2",
+  "theme_color": "#1a5c38",
+  "icons": []
+}

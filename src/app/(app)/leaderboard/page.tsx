@@ -113,8 +113,7 @@ export default async function LeaderboardPage({
           leaderboard.map((entry, i) => (
             <div
               key={entry.id}
-              className={`bg-white rounded-2xl p-3.5 shadow-sm flex items-center gap-3 ${entry.id === user.id ? 'ring-2' : ''}`}
-              style={entry.id === user.id ? { ringColor: '#4caf50' } as React.CSSProperties : {}}
+              className={`bg-white rounded-2xl p-3.5 shadow-sm flex items-center gap-3 ${entry.id === user.id ? 'ring-2 ring-green-light' : ''}`}
             >
               <span className={`text-lg font-bold w-8 text-center ${i < 3 ? '' : 'text-gray-400'}`}>
                 {rankEmoji(i)}

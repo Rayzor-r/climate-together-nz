@@ -33,7 +33,7 @@ export default async function DashboardPage() {
   // Fetch active challenge
   const { data: challenge } = await supabase
     .from('challenges')
-    .select('*, challenge_participants(id)')
+    .select('*, challenge_participants(user_id)')
     .eq('is_active', true)
     .gte('end_date', new Date().toISOString().split('T')[0])
     .order('created_at', { ascending: false })
@@ -41,7 +41,7 @@ export default async function DashboardPage() {
     .single()
 
   const isJoined = challenge?.challenge_participants?.some(
-    (p: { id: string }) => p.id
+    (p: { user_id: string }) => p.user_id === user.id
   ) ?? false
 
   const greeting = () => {
