@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --green-deep: #1a5c38;
+  --green-mid: #2d7a4f;
+  --green-light: #4caf50;
+  --cream: #f9f7f2;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-color: var(--cream);
+  font-family: system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Mobile-first phone shell */
+.app-shell {
+  max-width: 430px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  background: var(--cream);
+  position: relative;
+}
+
+@media (min-width: 480px) {
+  body {
+    background: #e5e7eb;
+  }
+  .app-shell {
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.15);
+  }
+}
+
+/* Safe area insets for mobile */
+.safe-bottom {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 4rem);
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #4caf50;
+  border-radius: 2px;
+}
