@@ -16,7 +16,11 @@ function AuthForm() {
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(
+    searchParams.get('error') === 'callback_failed'
+      ? 'Email verification failed. Please try signing in, or request a new confirmation email.'
+      : ''
+  )
   const [message, setMessage] = useState('')
 
   const supabase = createClient()
@@ -36,7 +40,7 @@ function AuthForm() {
       if (signUpError) {
         setError(signUpError.message)
       } else {
-        setMessage('Check your email to confirm your account, then sign in below!')
+        setMessage('Check your email and click the confirmation link — you\'ll be signed in automatically.')
         setMode('login')
       }
     } else {
