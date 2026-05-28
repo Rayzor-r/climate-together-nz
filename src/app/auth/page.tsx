@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Leaf, Eye, EyeOff, ArrowLeft } from 'lucide-react'
@@ -31,28 +31,44 @@ function AuthForm() {
     setError('')
     setMessage('')
 
-    if (mode === 'signup') {
-      const { error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-      })
-      if (signUpError) {
-        setError(signUpError.message)
+    try {
+      if (mode === 'signup') {
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        })
+        console.log('[Auth] signUp response:', { user: data.user?.id, session: !!data.session, error: signUpError })
+
+        if (signUpError) {
+          setError(signUpError.message)
+        } else if (data.session) {
+          // Email confirmation is OFF — user is signed in immediately
+          console.log('[Auth] signup: immediate session, redirecting to /auth/setup')
+          router.push('/auth/setup')
+        } else {
+          // Email confirmation is ON — ask them to check their inbox
+          console.log('[Auth] signup: confirmation email sent')
+          setMessage("Check your email and click the confirmation link — you'll be signed in automatically.")
+          setMode('login')
+        }
       } else {
-        setMessage('Check your email and click the confirmation link — you\'ll be signed in automatically.')
-        setMode('login')
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+        console.log('[Auth] signInWithPassword response:', { user: data.user?.id, session: !!data.session, error: signInError })
+
+        if (signInError) {
+          setError(signInError.message)
+        } else {
+          console.log('[Auth] login: success, redirecting to /dashboard')
+          router.push('/dashboard')
+        }
       }
-    } else {
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
-      if (signInError) {
-        setError(signInError.message)
-      } else {
-        router.push('/dashboard')
-        router.refresh()
-      }
+    } catch (err) {
+      console.error('[Auth] unexpected error:', err)
+      setError('An unexpected error occurred. Please try again.')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (
@@ -140,7 +156,9 @@ function AuthForm() {
             className="w-full py-4 rounded-2xl font-bold text-white text-base shadow-lg disabled:opacity-60 mt-2"
             style={{ backgroundColor: '#1a5c38' }}
           >
-            {loading ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Create account'}
+            {loading
+              ? (mode === 'login' ? 'Signing in…' : 'Creating account…')
+              : (mode === 'login' ? 'Sign in' : 'Create account')}
           </button>
         </form>
 
