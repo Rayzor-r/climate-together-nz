@@ -11,26 +11,37 @@ export default function ChallengesPage() {
   const [userId, setUserId] = useState<string | null>(null)
   const [joining, setJoining] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) setUserId(user.id)
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) setUserId(user.id)
 
-      const { data: ch } = await supabase
-        .from('challenges')
-        .select('*, challenge_participants(user_id)')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
+        const { data: ch, error: fetchError } = await supabase
+          .from('challenges')
+          .select('*, challenge_participants(user_id)')
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
 
-      if (ch && user) {
-        setChallenges(ch.map((c: Challenge & { challenge_participants: { user_id: string }[] }) => ({
-          ...c,
-          participant_count: c.challenge_participants?.length ?? 0,
-          is_joined: c.challenge_participants?.some((p) => p.user_id === user.id) ?? false,
-        })))
+        if (fetchError) throw fetchError
+
+        if (ch) {
+          setChallenges(ch.map((c: Challenge & { challenge_participants: { user_id: string }[] }) => ({
+            ...c,
+            participant_count: c.challenge_participants?.length ?? 0,
+            is_joined: user
+              ? (c.challenge_participants?.some((p) => p.user_id === user.id) ?? false)
+              : false,
+          })))
+        }
+      } catch (err) {
+        console.error('[Challenges] load error:', err)
+        setError('Could not load challenges. Please refresh.')
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
     load()
   }, [])
@@ -38,15 +49,30 @@ export default function ChallengesPage() {
   async function handleJoin(challengeId: string) {
     if (!userId) return
     setJoining(challengeId)
-    await supabase.from('challenge_participants').insert({ challenge_id: challengeId, user_id: userId })
-    setChallenges((prev) =>
-      prev.map((c) =>
-        c.id === challengeId
-          ? { ...c, is_joined: true, participant_count: (c.participant_count ?? 0) + 1 }
-          : c
-      )
-    )
-    setJoining(null)
+    setError('')
+    try {
+      const { error: joinError } = await supabase
+        .from('challenge_participants')
+        .insert({ challenge_id: challengeId, user_id: userId })
+
+      if (joinError) {
+        console.error('[Challenges] join error:', joinError)
+        setError('Could not join challenge. Please try again.')
+      } else {
+        setChallenges((prev) =>
+          prev.map((c) =>
+            c.id === challengeId
+              ? { ...c, is_joined: true, participant_count: (c.participant_count ?? 0) + 1 }
+              : c
+          )
+        )
+      }
+    } catch (err) {
+      console.error('[Challenges] unexpected join error:', err)
+      setError('Could not join challenge. Please try again.')
+    } finally {
+      setJoining(null)
+    }
   }
 
   const daysLeft = (endDate: string) => {
@@ -69,6 +95,10 @@ export default function ChallengesPage() {
       </div>
 
       <div className="px-4 pt-5 pb-8 space-y-3">
+        {error && (
+          <div className="p-3 rounded-2xl text-sm font-medium bg-red-50 text-red-700">{error}</div>
+        )}
+
         {loading ? (
           [...Array(2)].map((_, i) => (
             <div key={i} className="bg-white rounded-2xl p-4 h-40 animate-pulse" />
@@ -82,7 +112,6 @@ export default function ChallengesPage() {
         ) : (
           challenges.map((ch) => (
             <div key={ch.id} className="bg-white rounded-2xl p-4 shadow-sm">
-              {/* Badge row */}
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: '#4caf50' }}>
                   ACTIVE
@@ -96,18 +125,21 @@ export default function ChallengesPage() {
               <h3 className="font-bold text-gray-900 mb-1">{ch.title}</h3>
               <p className="text-sm text-gray-500 leading-relaxed mb-3">{ch.description}</p>
 
-              {/* Progress bar (visual only) */}
               <div className="mb-3">
                 <div className="flex justify-between text-xs text-gray-400 mb-1">
                   <span>{ch.participant_count ?? 0} participants</span>
-                  <span>{new Date(ch.start_date).toLocaleDateString('en-NZ', { month: 'short', day: 'numeric' })} – {new Date(ch.end_date).toLocaleDateString('en-NZ', { month: 'short', day: 'numeric' })}</span>
+                  <span>
+                    {new Date(ch.start_date).toLocaleDateString('en-NZ', { month: 'short', day: 'numeric' })}
+                    {' – '}
+                    {new Date(ch.end_date).toLocaleDateString('en-NZ', { month: 'short', day: 'numeric' })}
+                  </span>
                 </div>
                 <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all"
                     style={{
                       backgroundColor: '#4caf50',
-                      width: `${Math.min(100, ((new Date().getTime() - new Date(ch.start_date).getTime()) / (new Date(ch.end_date).getTime() - new Date(ch.start_date).getTime())) * 100)}%`
+                      width: `${Math.min(100, Math.max(0, ((Date.now() - new Date(ch.start_date).getTime()) / (new Date(ch.end_date).getTime() - new Date(ch.start_date).getTime())) * 100))}%`,
                     }}
                   />
                 </div>

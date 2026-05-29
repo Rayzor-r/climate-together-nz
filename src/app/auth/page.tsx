@@ -1,13 +1,12 @@
 'use client'
 
 import { useState, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Leaf, Eye, EyeOff, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
 function AuthForm() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const [mode, setMode] = useState<'login' | 'signup'>(
     (searchParams.get('mode') as 'login' | 'signup') || 'login'
@@ -43,24 +42,24 @@ function AuthForm() {
         if (signUpError) {
           setError(signUpError.message)
         } else if (data.session) {
-          // Email confirmation is OFF — user is signed in immediately
-          console.log('[Auth] signup: immediate session, redirecting to /auth/setup')
-          router.push('/auth/setup')
+          // Email confirmation OFF — user is signed in immediately
+          console.log('[Auth] signup: immediate session, navigating to /auth/setup')
+          window.location.href = '/auth/setup'
         } else {
-          // Email confirmation is ON — ask them to check their inbox
+          // Email confirmation ON — ask them to check inbox
           console.log('[Auth] signup: confirmation email sent')
           setMessage("Check your email and click the confirmation link — you'll be signed in automatically.")
           setMode('login')
         }
       } else {
         const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
-        console.log('[Auth] signInWithPassword response:', { user: data.user?.id, session: !!data.session, error: signInError })
+        console.log('[Auth] signIn response:', { user: data.user?.id, session: !!data.session, error: signInError })
 
         if (signInError) {
           setError(signInError.message)
         } else {
-          console.log('[Auth] login: success, redirecting to /dashboard')
-          router.push('/dashboard')
+          console.log('[Auth] login success, navigating to /dashboard')
+          window.location.href = '/dashboard'
         }
       }
     } catch (err) {
@@ -162,7 +161,6 @@ function AuthForm() {
           </button>
         </form>
 
-        {/* Toggle mode */}
         <div className="text-center mt-6">
           <span className="text-gray-500 text-sm">
             {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
@@ -182,7 +180,11 @@ function AuthForm() {
 
 export default function AuthPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f9f7f2' }}><div className="text-gray-400">Loading…</div></div>}>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f9f7f2' }}>
+        <div className="text-gray-400">Loading…</div>
+      </div>
+    }>
       <AuthForm />
     </Suspense>
   )

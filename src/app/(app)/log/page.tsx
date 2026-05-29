@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
 import type { ActionItem } from '@/lib/types'
 import ActionCard from '@/components/ActionCard'
 import { CheckCircle, ArrowLeft } from 'lucide-react'
@@ -12,19 +11,31 @@ const CATEGORIES = ['All', 'Transport', 'Energy', 'Waste', 'Water', 'Food', 'Nat
 
 export default function LogPage() {
   const supabase = createClient()
-  const router = useRouter()
   const [actions, setActions] = useState<ActionItem[]>([])
   const [category, setCategory] = useState('All')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [logging, setLogging] = useState<string | null>(null)
   const [success, setSuccess] = useState<ActionItem | null>(null)
   const [logError, setLogError] = useState('')
 
   useEffect(() => {
-    supabase.from('actions_library').select('*').order('points', { ascending: false }).then(({ data }) => {
-      if (data) setActions(data)
-      setLoading(false)
-    })
+    async function fetchActions() {
+      try {
+        const { data, error } = await supabase
+          .from('actions_library')
+          .select('*')
+          .order('points', { ascending: false })
+        if (error) throw error
+        setActions(data ?? [])
+      } catch (err) {
+        console.error('[Log] failed to load actions:', err)
+        setLoadError('Could not load actions. Please refresh the page.')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchActions()
   }, [])
 
   const filtered = category === 'All' ? actions : actions.filter((a) => a.category === category)
@@ -32,19 +43,29 @@ export default function LogPage() {
   async function handleLog(action: ActionItem) {
     setLogging(action.id)
     setLogError('')
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { router.push('/auth'); return }
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        window.location.href = '/auth'
+        return
+      }
 
-    const { error } = await supabase.from('user_actions').insert({
-      user_id: user.id,
-      action_id: action.id,
-    })
+      const { error } = await supabase.from('user_actions').insert({
+        user_id: user.id,
+        action_id: action.id,
+      })
 
-    setLogging(null)
-    if (!error) {
-      setSuccess(action)
-    } else {
+      if (error) {
+        console.error('[Log] insert error:', error)
+        setLogError('Could not log action. Please try again.')
+      } else {
+        setSuccess(action)
+      }
+    } catch (err) {
+      console.error('[Log] unexpected error:', err)
       setLogError('Could not log action. Please try again.')
+    } finally {
+      setLogging(null)
     }
   }
 
@@ -84,13 +105,14 @@ export default function LogPage() {
           >
             Log another
           </button>
-          <Link
+          {/* Hard navigate so dashboard re-fetches fresh stats */}
+          <a
             href="/dashboard"
             className="flex-1 py-4 rounded-2xl font-bold text-white text-base text-center"
             style={{ backgroundColor: '#1a5c38' }}
           >
             Done
-          </Link>
+          </a>
         </div>
       </div>
     )
@@ -129,6 +151,12 @@ export default function LogPage() {
         </div>
       </div>
 
+      {loadError && (
+        <div className="mx-4 mb-3 p-3 rounded-2xl text-sm font-medium bg-red-50 text-red-700">
+          {loadError}
+        </div>
+      )}
+
       {logError && (
         <div className="mx-4 mb-3 p-3 rounded-2xl text-sm font-medium bg-red-50 text-red-700">
           {logError}
@@ -142,6 +170,11 @@ export default function LogPage() {
             {[...Array(6)].map((_, i) => (
               <div key={i} className="bg-white rounded-2xl p-4 h-32 animate-pulse" />
             ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="text-4xl mb-3">🌿</div>
+            <p className="text-gray-500 text-sm">No actions in this category</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
