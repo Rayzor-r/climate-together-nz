@@ -1,7 +1,6 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { Leaf } from 'lucide-react'
 
@@ -20,7 +19,6 @@ const USER_TYPES = [
 ]
 
 export default function SetupPage() {
-  const router = useRouter()
   const supabase = createClient()
   const [name, setName] = useState('')
   const [region, setRegion] = useState('')
@@ -28,30 +26,77 @@ export default function SetupPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // Log the session state on mount so we can confirm the user is authenticated
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data, error }) => {
+      console.log('[Setup] mount getUser:', {
+        userId: data?.user?.id ?? null,
+        email: data?.user?.email ?? null,
+        error: error?.message ?? null,
+      })
+      if (!data?.user) {
+        console.warn('[Setup] no user on mount — redirecting to /auth')
+        window.location.href = '/auth'
+      }
+    })
+  }, [])
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) { setError('Please enter your name'); return }
     setLoading(true)
     setError('')
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { router.push('/auth'); return }
+    try {
+      const { data: { user }, error: getUserError } = await supabase.auth.getUser()
+      console.log('[Setup] handleSave getUser:', {
+        userId: user?.id ?? null,
+        error: getUserError?.message ?? null,
+      })
 
-    const { error: upsertError } = await supabase
-      .from('users')
-      .upsert({
+      if (!user) {
+        setError('Session expired. Please sign in again.')
+        setLoading(false)
+        window.location.href = '/auth'
+        return
+      }
+
+      const payload = {
         id: user.id,
         email: user.email!,
         name: name.trim(),
         region: region || null,
         user_type: (userType || 'individual') as 'individual' | 'school' | 'business' | 'community',
+      }
+      console.log('[Setup] upserting payload:', payload)
+
+      const { data: upsertData, error: upsertError } = await supabase
+        .from('users')
+        .upsert(payload)
+        .select()
+
+      console.log('[Setup] upsert result:', {
+        data: upsertData,
+        error: upsertError?.message ?? null,
+        code: upsertError?.code ?? null,
+        details: upsertError?.details ?? null,
       })
 
-    if (upsertError) {
-      setError(upsertError.message)
+      if (upsertError) {
+        setError(`Could not save profile: ${upsertError.message}`)
+        setLoading(false)
+        return
+      }
+
+      // Use window.location.href for a full page reload so the dashboard
+      // server component reads fresh data and the Next.js router cache
+      // doesn't serve a stale version that still sees name = ''.
+      console.log('[Setup] upsert succeeded — navigating to /dashboard')
+      window.location.href = '/dashboard'
+    } catch (err) {
+      console.error('[Setup] unexpected error:', err)
+      setError('An unexpected error occurred. Please try again.')
       setLoading(false)
-    } else {
-      router.push('/dashboard')
     }
   }
 
@@ -108,12 +153,10 @@ export default function SetupPage() {
                 key={t.value}
                 type="button"
                 onClick={() => setUserType(t.value)}
-                className={`py-3 px-4 rounded-2xl border-2 text-left transition-all ${
-                  userType === t.value
-                    ? 'border-green-deep bg-green-pale'
-                    : 'border-gray-200 bg-white'
-                }`}
-                style={userType === t.value ? { borderColor: '#1a5c38', backgroundColor: '#e8f5e9' } : {}}
+                className="py-3 px-4 rounded-2xl border-2 text-left transition-all"
+                style={userType === t.value
+                  ? { borderColor: '#1a5c38', backgroundColor: '#e8f5e9' }
+                  : { borderColor: '#e5e7eb', backgroundColor: 'white' }}
               >
                 <div className="text-xl mb-0.5">{t.emoji}</div>
                 <div className="text-sm font-medium text-gray-800">{t.label}</div>
