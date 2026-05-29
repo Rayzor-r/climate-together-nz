@@ -43,9 +43,14 @@ export async function middleware(request: NextRequest) {
   const isProtected = PROTECTED_PATHS.some((p) => pathname.startsWith(p))
   if (!isProtected) return supabaseResponse
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // getUser() validates the JWT server-side (network call to Supabase).
+  // Fall back to getSession() — local JWT validation — if it returns null,
+  // so a transient network hiccup never locks a valid user out.
+  let user = (await supabase.auth.getUser()).data.user
+  if (!user) {
+    const { data: { session } } = await supabase.auth.getSession()
+    user = session?.user ?? null
+  }
 
   if (!user) {
     // Unauthenticated user on a protected path — send to /auth.
