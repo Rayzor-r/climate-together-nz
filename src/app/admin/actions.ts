@@ -67,6 +67,21 @@ export async function toggleChallenge(id: string, isActive: boolean): Promise<{ 
   }
 }
 
+export async function deleteUser(userId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    assertAdmin()
+    const supabase = createAdminClient()
+    // auth.admin.deleteUser removes from auth.users; the ON DELETE CASCADE on
+    // the public.users FK then removes their profile row and all user_actions.
+    const { error } = await supabase.auth.admin.deleteUser(userId)
+    if (error) return { success: false, error: error.message }
+    revalidatePath('/admin')
+    return { success: true }
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Unknown error' }
+  }
+}
+
 export async function createGroup(data: {
   name: string
   type: 'school' | 'business' | 'community'

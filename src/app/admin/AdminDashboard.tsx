@@ -3,6 +3,7 @@ import AdminLogoutButton from './AdminLogoutButton'
 import AdminExportButton from './AdminExportButton'
 import AdminChallengeManager from './AdminChallengeManager'
 import AdminGroupManager from './AdminGroupManager'
+import AdminDeleteUserButton from './AdminDeleteUserButton'
 import { Users, Activity, Leaf, DollarSign } from 'lucide-react'
 
 export default async function AdminDashboard() {
@@ -98,6 +99,7 @@ export default async function AdminDashboard() {
                     <th className="text-left px-3 py-2.5 font-semibold text-gray-500 hidden lg:table-cell">Group</th>
                     <th className="text-right px-3 py-2.5 font-semibold text-gray-500">Pts</th>
                     <th className="text-left px-3 py-2.5 font-semibold text-gray-500 hidden sm:table-cell">Joined</th>
+                    <th className="px-3 py-2.5" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -113,6 +115,9 @@ export default async function AdminDashboard() {
                       <td className="px-3 py-2.5 font-bold text-right whitespace-nowrap" style={{ color: '#1a5c38' }}>{u.points}</td>
                       <td className="px-3 py-2.5 text-gray-400 whitespace-nowrap hidden sm:table-cell">
                         {new Date(u.created_at).toLocaleDateString('en-NZ', { month: 'short', day: 'numeric' })}
+                      </td>
+                      <td className="px-2 py-2 text-center">
+                        <AdminDeleteUserButton userId={u.id} userName={u.name || u.email} />
                       </td>
                     </tr>
                   ))}
