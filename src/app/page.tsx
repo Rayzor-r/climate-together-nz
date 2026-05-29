@@ -3,6 +3,7 @@ import { Leaf, Users, BarChart3, Award } from 'lucide-react'
 
 export default function LandingPage() {
   return (
+    <div className="app-shell">
     <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(160deg, #1a5c38 0%, #2d7a4f 50%, #4caf50 100%)' }}>
       {/* Header */}
       <header className="px-6 pt-12 pb-4">
@@ -82,6 +83,7 @@ export default function LandingPage() {
           Free to join · No spam · Kia ora 🤙
         </p>
       </main>
+    </div>
     </div>
   )
 }

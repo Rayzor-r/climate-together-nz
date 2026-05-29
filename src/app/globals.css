@@ -19,7 +19,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Mobile-first phone shell */
+/* Auth/landing pages: centered mobile card */
 .app-shell {
   max-width: 430px;
   min-height: 100dvh;
@@ -37,17 +37,22 @@ body {
   }
 }
 
-/* Safe area insets for mobile */
+/* Desktop: restore cream body so app pages look seamless */
+@media (min-width: 1024px) {
+  body {
+    background: var(--cream);
+  }
+}
+
+/* Safe area insets */
 .safe-bottom {
   padding-bottom: calc(env(safe-area-inset-bottom) + 4rem);
 }
 
-/* Smooth scrolling */
 html {
   scroll-behavior: smooth;
 }
 
-/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 4px;
 }

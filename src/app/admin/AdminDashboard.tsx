@@ -1,34 +1,50 @@
 import { createAdminClient } from '@/lib/supabase-server'
 import AdminLogoutButton from './AdminLogoutButton'
 import AdminExportButton from './AdminExportButton'
+import AdminChallengeManager from './AdminChallengeManager'
+import AdminGroupManager from './AdminGroupManager'
 import { Users, Activity, Leaf, DollarSign } from 'lucide-react'
 
 export default async function AdminDashboard() {
   const supabase = createAdminClient()
 
-  // Fetch all users
-  const { data: users } = await supabase
-    .from('users')
-    .select('*, groups(name)')
-    .order('created_at', { ascending: false })
-
-  // Fetch all actions with join
-  const { data: userActions } = await supabase
-    .from('user_actions')
-    .select('*, users(name, email), actions_library(name, co2_saved_kg, money_saved_nzd, points)')
-    .order('logged_at', { ascending: false })
-    .limit(200)
+  const [
+    { data: users },
+    { data: userActions },
+    { data: challenges },
+    { data: groupRows },
+  ] = await Promise.all([
+    supabase.from('users').select('*, groups(name)').order('created_at', { ascending: false }),
+    supabase.from('user_actions')
+      .select('*, users(name, email), actions_library(name, co2_saved_kg, money_saved_nzd, points)')
+      .order('logged_at', { ascending: false })
+      .limit(200),
+    supabase.from('challenges').select('*').order('created_at', { ascending: false }),
+    supabase.from('groups').select('*, users(name, email, points)').order('name'),
+  ])
 
   const totalUsers = users?.length ?? 0
   const totalActions = userActions?.length ?? 0
   const totalCO2 = userActions?.reduce((s, a) => s + ((a.actions_library as unknown as { co2_saved_kg: number } | null)?.co2_saved_kg ?? 0), 0) ?? 0
   const totalMoney = userActions?.reduce((s, a) => s + ((a.actions_library as unknown as { money_saved_nzd: number } | null)?.money_saved_nzd ?? 0), 0) ?? 0
 
+  const groupsWithMembers = (groupRows ?? []).map((g) => {
+    const members = (g.users as unknown as { name: string; email: string; points: number }[] | null) ?? []
+    return {
+      id: g.id as string,
+      name: g.name as string,
+      type: g.type as string,
+      created_at: g.created_at as string,
+      member_count: members.length,
+      members,
+    }
+  })
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#f9f7f2' }}>
       {/* Header */}
-      <div className="px-4 pt-10 pb-5" style={{ background: 'linear-gradient(135deg, #1a5c38 0%, #2d7a4f 100%)' }}>
-        <div className="flex items-start justify-between">
+      <div className="px-4 lg:px-8 pt-10 pb-5" style={{ background: 'linear-gradient(135deg, #1a5c38 0%, #2d7a4f 100%)' }}>
+        <div className="max-w-6xl mx-auto flex items-start justify-between">
           <div>
             <p className="text-green-200 text-xs font-medium uppercase tracking-widest">Admin</p>
             <h1 className="text-2xl font-bold text-white mt-0.5">Climate Together NZ</h1>
@@ -38,9 +54,9 @@ export default async function AdminDashboard() {
         </div>
       </div>
 
-      <div className="px-4 py-5 space-y-5">
+      <div className="max-w-6xl mx-auto px-4 lg:px-8 py-5 space-y-6 pb-12">
         {/* Summary stats */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
             { icon: Users, label: 'Total users', value: totalUsers, color: '#1a5c38' },
             { icon: Activity, label: 'Actions logged', value: totalActions, color: '#4caf50' },
@@ -55,8 +71,17 @@ export default async function AdminDashboard() {
           ))}
         </div>
 
-        {/* Export button */}
+        {/* Export */}
         <AdminExportButton />
+
+        {/* Challenge management */}
+        <AdminChallengeManager challenges={(challenges ?? []) as {
+          id: string; title: string; description: string | null;
+          start_date: string; end_date: string; is_active: boolean; created_at: string
+        }[]} />
+
+        {/* Group management */}
+        <AdminGroupManager groups={groupsWithMembers} />
 
         {/* Users table */}
         <section>
@@ -68,10 +93,11 @@ export default async function AdminDashboard() {
                   <tr style={{ backgroundColor: '#f9f7f2' }}>
                     <th className="text-left px-3 py-2.5 font-semibold text-gray-500">Name</th>
                     <th className="text-left px-3 py-2.5 font-semibold text-gray-500">Email</th>
-                    <th className="text-left px-3 py-2.5 font-semibold text-gray-500">Type</th>
-                    <th className="text-left px-3 py-2.5 font-semibold text-gray-500">Region</th>
+                    <th className="text-left px-3 py-2.5 font-semibold text-gray-500 hidden md:table-cell">Type</th>
+                    <th className="text-left px-3 py-2.5 font-semibold text-gray-500 hidden md:table-cell">Region</th>
+                    <th className="text-left px-3 py-2.5 font-semibold text-gray-500 hidden lg:table-cell">Group</th>
                     <th className="text-right px-3 py-2.5 font-semibold text-gray-500">Pts</th>
-                    <th className="text-left px-3 py-2.5 font-semibold text-gray-500">Joined</th>
+                    <th className="text-left px-3 py-2.5 font-semibold text-gray-500 hidden sm:table-cell">Joined</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -79,10 +105,13 @@ export default async function AdminDashboard() {
                     <tr key={u.id} className="hover:bg-gray-50">
                       <td className="px-3 py-2.5 font-medium text-gray-900 whitespace-nowrap">{u.name || '—'}</td>
                       <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap">{u.email}</td>
-                      <td className="px-3 py-2.5 text-gray-500 capitalize whitespace-nowrap">{u.user_type ?? '—'}</td>
-                      <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap">{u.region ?? '—'}</td>
+                      <td className="px-3 py-2.5 text-gray-500 capitalize whitespace-nowrap hidden md:table-cell">{u.user_type ?? '—'}</td>
+                      <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap hidden md:table-cell">{u.region ?? '—'}</td>
+                      <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap hidden lg:table-cell">
+                        {(u.groups as unknown as { name: string } | null)?.name ?? '—'}
+                      </td>
                       <td className="px-3 py-2.5 font-bold text-right whitespace-nowrap" style={{ color: '#1a5c38' }}>{u.points}</td>
-                      <td className="px-3 py-2.5 text-gray-400 whitespace-nowrap">
+                      <td className="px-3 py-2.5 text-gray-400 whitespace-nowrap hidden sm:table-cell">
                         {new Date(u.created_at).toLocaleDateString('en-NZ', { month: 'short', day: 'numeric' })}
                       </td>
                     </tr>
@@ -94,7 +123,7 @@ export default async function AdminDashboard() {
         </section>
 
         {/* Actions table */}
-        <section className="pb-8">
+        <section>
           <h2 className="text-sm font-bold text-gray-700 mb-2">Recent Actions (last 200)</h2>
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
@@ -104,8 +133,8 @@ export default async function AdminDashboard() {
                     <th className="text-left px-3 py-2.5 font-semibold text-gray-500">User</th>
                     <th className="text-left px-3 py-2.5 font-semibold text-gray-500">Action</th>
                     <th className="text-right px-3 py-2.5 font-semibold text-gray-500">CO₂</th>
-                    <th className="text-right px-3 py-2.5 font-semibold text-gray-500">$</th>
-                    <th className="text-left px-3 py-2.5 font-semibold text-gray-500">Date</th>
+                    <th className="text-right px-3 py-2.5 font-semibold text-gray-500 hidden sm:table-cell">$</th>
+                    <th className="text-left px-3 py-2.5 font-semibold text-gray-500 hidden sm:table-cell">Date</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -117,8 +146,8 @@ export default async function AdminDashboard() {
                         <td className="px-3 py-2.5 text-gray-900 whitespace-nowrap">{user?.name || user?.email || '—'}</td>
                         <td className="px-3 py-2.5 text-gray-500">{action?.name ?? '—'}</td>
                         <td className="px-3 py-2.5 text-right text-gray-700 whitespace-nowrap">{action?.co2_saved_kg}kg</td>
-                        <td className="px-3 py-2.5 text-right text-gray-700 whitespace-nowrap">${action?.money_saved_nzd?.toFixed(2)}</td>
-                        <td className="px-3 py-2.5 text-gray-400 whitespace-nowrap">
+                        <td className="px-3 py-2.5 text-right text-gray-700 whitespace-nowrap hidden sm:table-cell">${action?.money_saved_nzd?.toFixed(2)}</td>
+                        <td className="px-3 py-2.5 text-gray-400 whitespace-nowrap hidden sm:table-cell">
                           {new Date(ua.logged_at).toLocaleDateString('en-NZ', { month: 'short', day: 'numeric' })}
                         </td>
                       </tr>

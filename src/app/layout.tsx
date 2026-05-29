@@ -18,9 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <div className="app-shell">
-          {children}
-        </div>
+        {children}
       </body>
     </html>
   )
