@@ -3,18 +3,23 @@ import { NextResponse, type NextRequest } from 'next/server'
 import type { EmailOtpType } from '@supabase/supabase-js'
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url)
+  const searchParams = request.nextUrl.searchParams
   const code = searchParams.get('code')
   const token_hash = searchParams.get('token_hash')
   const type = searchParams.get('type') as EmailOtpType | null
-  const next = searchParams.get('next') ?? '/dashboard'
 
-  // Build the redirect response BEFORE creating the Supabase client so that
-  // setAll can attach session cookies directly onto it. If we used
-  // cookies() from next/headers instead, the session would be written to the
-  // implicit response — not to this NextResponse.redirect — and the browser
-  // would never receive it.
-  const successResponse = NextResponse.redirect(new URL(next, origin))
+  // Guard against open-redirect: only allow relative paths starting with /
+  const rawNext = searchParams.get('next') ?? '/dashboard'
+  const next = rawNext.startsWith('/') ? rawNext : '/dashboard'
+
+  // Use request.nextUrl.clone() so the redirect target uses the public-facing
+  // host/protocol from x-forwarded-host / x-forwarded-proto (set by Railway's
+  // reverse proxy). Using new URL(request.url) gives the internal container
+  // address (0.0.0.0:PORT) instead of the real public hostname.
+  const successUrl = request.nextUrl.clone()
+  successUrl.pathname = next
+  successUrl.search = ''
+  const successResponse = NextResponse.redirect(successUrl)
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -45,5 +50,8 @@ export async function GET(request: NextRequest) {
     if (!error) return successResponse
   }
 
-  return NextResponse.redirect(new URL('/auth?error=callback_failed', origin))
+  const errorUrl = request.nextUrl.clone()
+  errorUrl.pathname = '/auth'
+  errorUrl.search = '?error=callback_failed'
+  return NextResponse.redirect(errorUrl)
 }

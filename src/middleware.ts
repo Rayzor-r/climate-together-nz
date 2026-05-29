@@ -31,10 +31,13 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // Helper: build a redirect that carries any session-refresh cookies set
-  // by getUser() above. Without this, a token refresh that happened during
-  // this middleware run would be lost whenever we redirect.
-  function redirectWithCookies(url: URL) {
+  // Build a redirect using request.nextUrl.clone() so the public-facing host
+  // from x-forwarded-host is used, not the internal container address.
+  // Also forwards any session-refresh cookies set during getUser() above.
+  function redirectWithCookies(pathname: string) {
+    const url = request.nextUrl.clone()
+    url.pathname = pathname
+    url.search = ''
     const res = NextResponse.redirect(url)
     supabaseResponse.cookies.getAll().forEach(({ name, value }) => {
       res.cookies.set(name, value)
@@ -46,11 +49,11 @@ export async function middleware(request: NextRequest) {
   const isProtected = protectedPaths.some((p) => pathname.startsWith(p))
 
   if (!user && isProtected) {
-    return redirectWithCookies(new URL('/auth', request.url))
+    return redirectWithCookies('/auth')
   }
 
   if (user && pathname === '/auth') {
-    return redirectWithCookies(new URL('/dashboard', request.url))
+    return redirectWithCookies('/dashboard')
   }
 
   return supabaseResponse
